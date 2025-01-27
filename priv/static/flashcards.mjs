@@ -47,8 +47,8 @@ var List = class {
     return length2;
   }
 };
-function prepend(element3, tail) {
-  return new NonEmpty(element3, tail);
+function prepend(element2, tail) {
+  return new NonEmpty(element2, tail);
 }
 function toList(elements2, tail) {
   return List.fromArray(elements2, tail);
@@ -188,19 +188,19 @@ var None = class extends CustomType {
 // build/dev/javascript/gleam_stdlib/gleam/string.mjs
 function drop_start(loop$string, loop$num_graphemes) {
   while (true) {
-    let string3 = loop$string;
+    let string4 = loop$string;
     let num_graphemes = loop$num_graphemes;
     let $ = num_graphemes > 0;
     if (!$) {
-      return string3;
+      return string4;
     } else {
-      let $1 = pop_grapheme(string3);
+      let $1 = pop_grapheme(string4);
       if ($1.isOk()) {
         let string$1 = $1[0][1];
         loop$string = string$1;
         loop$num_graphemes = num_graphemes - 1;
       } else {
-        return string3;
+        return string4;
       }
     }
   }
@@ -918,22 +918,22 @@ function to_string(term) {
   return term.toString();
 }
 var segmenter = void 0;
-function graphemes_iterator(string3) {
+function graphemes_iterator(string4) {
   if (globalThis.Intl && Intl.Segmenter) {
     segmenter ||= new Intl.Segmenter();
-    return segmenter.segment(string3)[Symbol.iterator]();
+    return segmenter.segment(string4)[Symbol.iterator]();
   }
 }
-function pop_grapheme(string3) {
+function pop_grapheme(string4) {
   let first2;
-  const iterator = graphemes_iterator(string3);
+  const iterator = graphemes_iterator(string4);
   if (iterator) {
     first2 = iterator.next().value?.segment;
   } else {
-    first2 = string3.match(/./su)?.[0];
+    first2 = string4.match(/./su)?.[0];
   }
   if (first2) {
-    return new Ok([first2, string3.slice(first2.length)]);
+    return new Ok([first2, string4.slice(first2.length)]);
   } else {
     return new Error(Nil);
   }
@@ -1008,6 +1008,24 @@ function keys(dict2) {
 }
 
 // build/dev/javascript/gleam_stdlib/gleam/list.mjs
+function drop(loop$list, loop$n) {
+  while (true) {
+    let list2 = loop$list;
+    let n = loop$n;
+    let $ = n <= 0;
+    if ($) {
+      return list2;
+    } else {
+      if (list2.hasLength(0)) {
+        return toList([]);
+      } else {
+        let rest$1 = list2.tail;
+        loop$list = rest$1;
+        loop$n = n - 1;
+      }
+    }
+  }
+}
 function fold(loop$list, loop$initial, loop$fun) {
   while (true) {
     let list2 = loop$list;
@@ -1099,6 +1117,13 @@ var Attribute = class extends CustomType {
     this.as_property = as_property;
   }
 };
+var Event = class extends CustomType {
+  constructor(x0, x1) {
+    super();
+    this[0] = x0;
+    this[1] = x1;
+  }
+};
 function attribute_to_event_handler(attribute2) {
   if (attribute2 instanceof Attribute) {
     return new Error(void 0);
@@ -1113,27 +1138,27 @@ function do_element_list_handlers(elements2, handlers2, key) {
   return index_fold(
     elements2,
     handlers2,
-    (handlers3, element3, index3) => {
+    (handlers3, element2, index3) => {
       let key$1 = key + "-" + to_string(index3);
-      return do_handlers(element3, handlers3, key$1);
+      return do_handlers(element2, handlers3, key$1);
     }
   );
 }
 function do_handlers(loop$element, loop$handlers, loop$key) {
   while (true) {
-    let element3 = loop$element;
+    let element2 = loop$element;
     let handlers2 = loop$handlers;
     let key = loop$key;
-    if (element3 instanceof Text) {
+    if (element2 instanceof Text) {
       return handlers2;
-    } else if (element3 instanceof Map2) {
-      let subtree = element3.subtree;
+    } else if (element2 instanceof Map2) {
+      let subtree = element2.subtree;
       loop$element = subtree();
       loop$handlers = handlers2;
       loop$key = key;
     } else {
-      let attrs = element3.attrs;
-      let children2 = element3.children;
+      let attrs = element2.attrs;
+      let children2 = element2.children;
       let handlers$1 = fold(
         attrs,
         handlers2,
@@ -1152,8 +1177,13 @@ function do_handlers(loop$element, loop$handlers, loop$key) {
     }
   }
 }
-function handlers(element3) {
-  return do_handlers(element3, new_map(), "0");
+function handlers(element2) {
+  return do_handlers(element2, new_map(), "0");
+}
+
+// build/dev/javascript/lustre/lustre/attribute.mjs
+function on(name, handler) {
+  return new Event("on" + name, handler);
 }
 
 // build/dev/javascript/lustre/lustre/element.mjs
@@ -1486,25 +1516,25 @@ function createElementNode({ prev, next, dispatch, stack }) {
   return el;
 }
 var registeredHandlers = /* @__PURE__ */ new WeakMap();
-function lustreGenericEventHandler(event) {
-  const target = event.currentTarget;
+function lustreGenericEventHandler(event2) {
+  const target = event2.currentTarget;
   if (!registeredHandlers.has(target)) {
-    target.removeEventListener(event.type, lustreGenericEventHandler);
+    target.removeEventListener(event2.type, lustreGenericEventHandler);
     return;
   }
   const handlersForEventTarget = registeredHandlers.get(target);
-  if (!handlersForEventTarget.has(event.type)) {
-    target.removeEventListener(event.type, lustreGenericEventHandler);
+  if (!handlersForEventTarget.has(event2.type)) {
+    target.removeEventListener(event2.type, lustreGenericEventHandler);
     return;
   }
-  handlersForEventTarget.get(event.type)(event);
+  handlersForEventTarget.get(event2.type)(event2);
 }
-function lustreServerEventHandler(event) {
-  const el = event.currentTarget;
-  const tag = el.getAttribute(`data-lustre-on-${event.type}`);
+function lustreServerEventHandler(event2) {
+  const el = event2.currentTarget;
+  const tag = el.getAttribute(`data-lustre-on-${event2.type}`);
   const data = JSON.parse(el.getAttribute("data-lustre-data") || "{}");
   const include = JSON.parse(el.getAttribute("data-lustre-include") || "[]");
-  switch (event.type) {
+  switch (event2.type) {
     case "input":
     case "change":
       include.push("target.value");
@@ -1515,7 +1545,7 @@ function lustreServerEventHandler(event) {
     data: include.reduce(
       (data2, property) => {
         const path = property.split(".");
-        for (let i = 0, o = data2, e = event; i < path.length; i++) {
+        for (let i = 0, o = data2, e = event2; i < path.length; i++) {
           if (i === path.length - 1) {
             o[path[i]] = e[path[i]];
           } else {
@@ -1578,16 +1608,16 @@ function diffKeyedChild(prevChild, child, el, stack, incomingKeyedChildren, keye
   stack.unshift({ prev: keyedChild, next: child, parent: el });
   return prevChild;
 }
-function* children(element3) {
-  for (const child of element3.children) {
+function* children(element2) {
+  for (const child of element2.children) {
     yield* forceChild(child);
   }
 }
-function* forceChild(element3) {
-  if (element3.subtree !== void 0) {
-    yield* forceChild(element3.subtree());
+function* forceChild(element2) {
+  if (element2.subtree !== void 0) {
+    yield* forceChild(element2.subtree());
   } else {
-    yield element3;
+    yield element2;
   }
 }
 
@@ -1605,13 +1635,13 @@ var LustreClientApplication = class _LustreClientApplication {
    *
    * @returns {Gleam.Ok<(action: Lustre.Action<Lustre.Client, Msg>>) => void>}
    */
-  static start({ init: init2, update, view }, selector, flags) {
+  static start({ init: init3, update: update2, view: view2 }, selector, flags) {
     if (!is_browser())
       return new Error(new NotABrowser());
     const root = selector instanceof HTMLElement ? selector : document.querySelector(selector);
     if (!root)
       return new Error(new ElementNotFound(selector));
-    const app = new _LustreClientApplication(root, init2(flags), update, view);
+    const app = new _LustreClientApplication(root, init3(flags), update2, view2);
     return new Ok((action) => app.send(action));
   }
   /**
@@ -1622,11 +1652,11 @@ var LustreClientApplication = class _LustreClientApplication {
    *
    * @returns {LustreClientApplication}
    */
-  constructor(root, [init2, effects], update, view) {
+  constructor(root, [init3, effects], update2, view2) {
     this.root = root;
-    this.#model = init2;
-    this.#update = update;
-    this.#view = view;
+    this.#model = init3;
+    this.#update = update2;
+    this.#view = view2;
     this.#tickScheduled = window.requestAnimationFrame(
       () => this.#tick(effects.all.toArray(), true)
     );
@@ -1645,8 +1675,8 @@ var LustreClientApplication = class _LustreClientApplication {
         this.#queue = [];
         this.#model = action[0][0];
         const vdom = this.#view(this.#model);
-        const dispatch = (handler, immediate = false) => (event) => {
-          const result = handler(event);
+        const dispatch = (handler, immediate = false) => (event2) => {
+          const result = handler(event2);
           if (result instanceof Ok) {
             this.send(new Dispatch(result[0], immediate));
           }
@@ -1665,10 +1695,10 @@ var LustreClientApplication = class _LustreClientApplication {
         this.#tickScheduled = window.requestAnimationFrame(() => this.#tick());
       }
     } else if (action instanceof Emit2) {
-      const event = action[0];
+      const event2 = action[0];
       const data = action[1];
       this.root.dispatchEvent(
-        new CustomEvent(event, {
+        new CustomEvent(event2, {
           detail: data,
           bubbles: true,
           composed: true
@@ -1702,8 +1732,8 @@ var LustreClientApplication = class _LustreClientApplication {
     this.#tickScheduled = void 0;
     this.#flush(effects);
     const vdom = this.#view(this.#model);
-    const dispatch = (handler, immediate = false) => (event) => {
-      const result = handler(event);
+    const dispatch = (handler, immediate = false) => (event2) => {
+      const result = handler(event2);
       if (result instanceof Ok) {
         this.send(new Dispatch(result[0], immediate));
       }
@@ -1721,8 +1751,8 @@ var LustreClientApplication = class _LustreClientApplication {
     while (effects.length > 0) {
       const effect = effects.shift();
       const dispatch = (msg) => this.send(new Dispatch(msg));
-      const emit2 = (event, data) => this.root.dispatchEvent(
-        new CustomEvent(event, {
+      const emit2 = (event2, data) => this.root.dispatchEvent(
+        new CustomEvent(event2, {
           detail: data,
           bubbles: true,
           composed: true
@@ -1740,20 +1770,20 @@ var LustreClientApplication = class _LustreClientApplication {
 };
 var start = LustreClientApplication.start;
 var LustreServerApplication = class _LustreServerApplication {
-  static start({ init: init2, update, view, on_attribute_change }, flags) {
+  static start({ init: init3, update: update2, view: view2, on_attribute_change }, flags) {
     const app = new _LustreServerApplication(
-      init2(flags),
-      update,
-      view,
+      init3(flags),
+      update2,
+      view2,
       on_attribute_change
     );
     return new Ok((action) => app.send(action));
   }
-  constructor([model, effects], update, view, on_attribute_change) {
+  constructor([model, effects], update2, view2, on_attribute_change) {
     this.#model = model;
-    this.#update = update;
-    this.#view = view;
-    this.#html = view(model);
+    this.#update = update2;
+    this.#view = view2;
+    this.#html = view2(model);
     this.#onAttributeChange = on_attribute_change;
     this.#renderers = /* @__PURE__ */ new Map();
     this.#handlers = handlers(this.#html);
@@ -1779,9 +1809,9 @@ var LustreServerApplication = class _LustreServerApplication {
       this.#queue.push(action[0]);
       this.#tick();
     } else if (action instanceof Emit2) {
-      const event = new Emit(action[0], action[1]);
+      const event2 = new Emit(action[0], action[1]);
       for (const [_, renderer] of this.#renderers) {
-        renderer(event);
+        renderer(event2);
       }
     } else if (action instanceof Event2) {
       const handler = this.#handlers.get(action[0]);
@@ -1832,8 +1862,8 @@ var LustreServerApplication = class _LustreServerApplication {
     while (effects.length > 0) {
       const effect = effects.shift();
       const dispatch = (msg) => this.send(new Dispatch(msg));
-      const emit2 = (event, data) => this.root.dispatchEvent(
-        new CustomEvent(event, {
+      const emit2 = (event2, data) => this.root.dispatchEvent(
+        new CustomEvent(event2, {
           detail: data,
           bubbles: true,
           composed: true
@@ -1854,11 +1884,11 @@ var is_browser = () => globalThis.window && window.document;
 
 // build/dev/javascript/lustre/lustre.mjs
 var App = class extends CustomType {
-  constructor(init2, update, view, on_attribute_change) {
+  constructor(init3, update2, view2, on_attribute_change) {
     super();
-    this.init = init2;
-    this.update = update;
-    this.view = view;
+    this.init = init3;
+    this.update = update2;
+    this.view = view2;
     this.on_attribute_change = on_attribute_change;
   }
 };
@@ -1870,20 +1900,17 @@ var ElementNotFound = class extends CustomType {
 };
 var NotABrowser = class extends CustomType {
 };
-function application(init2, update, view) {
-  return new App(init2, update, view, new None());
+function application(init3, update2, view2) {
+  return new App(init3, update2, view2, new None());
 }
-function element2(html) {
-  let init2 = (_) => {
-    return [void 0, none()];
+function simple(init3, update2, view2) {
+  let init$1 = (flags) => {
+    return [init3(flags), none()];
   };
-  let update = (_, _1) => {
-    return [void 0, none()];
+  let update$1 = (model, msg) => {
+    return [update2(model, msg), none()];
   };
-  let view = (_) => {
-    return html;
-  };
-  return application(init2, update, view);
+  return application(init$1, update$1, view2);
 }
 function start2(app, selector, flags) {
   return guard(
@@ -1902,6 +1929,19 @@ function h1(attrs, children2) {
 function div(attrs, children2) {
   return element("div", attrs, children2);
 }
+function button(attrs, children2) {
+  return element("button", attrs, children2);
+}
+
+// build/dev/javascript/lustre/lustre/event.mjs
+function on2(name, handler) {
+  return on(name, handler);
+}
+function on_click(msg) {
+  return on2("click", (_) => {
+    return new Ok(msg);
+  });
+}
 
 // build/dev/javascript/flashcards/flashcards.mjs
 var Card = class extends CustomType {
@@ -1911,10 +1951,39 @@ var Card = class extends CustomType {
     this.back = back;
   }
 };
+var AnsweredCorrectly = class extends CustomType {
+};
+var AnsweredWrongly = class extends CustomType {
+};
+var Model2 = class extends CustomType {
+  constructor(cards) {
+    super();
+    this.cards = cards;
+  }
+};
+function init2(_) {
+  return new Model2(
+    toList([
+      new Card("What is the capital of France?", "Paris"),
+      new Card("What is 2 + 2?", "4"),
+      new Card("Who wrote Hamlet?", "William Shakespeare")
+    ])
+  );
+}
 function display_card(card) {
   return div(
     toList([]),
-    toList([h1(toList([]), toList([text(card.front)]))])
+    toList([
+      h1(toList([]), toList([text(card.front)])),
+      button(
+        toList([on_click(new AnsweredCorrectly())]),
+        toList([text(" \u2705 ")])
+      ),
+      button(
+        toList([on_click(new AnsweredWrongly())]),
+        toList([text(" \u274C ")])
+      )
+    ])
   );
 }
 function display_end() {
@@ -1923,27 +1992,40 @@ function display_end() {
     toList([h1(toList([]), toList([text("Well done!")]))])
   );
 }
+function update(model, msg) {
+  if (msg instanceof AnsweredCorrectly) {
+    return new Model2(
+      (() => {
+        let _pipe = model.cards;
+        return drop(_pipe, 1);
+      })()
+    );
+  } else {
+    return new Model2(
+      (() => {
+        let _pipe = model.cards;
+        return drop(_pipe, 1);
+      })()
+    );
+  }
+}
+function view(model) {
+  let $ = model.cards;
+  if ($.atLeastLength(1)) {
+    let first2 = $.head;
+    return display_card(first2);
+  } else {
+    return display_end();
+  }
+}
 function main() {
-  let cards = toList([
-    new Card("What is the capital of France?", "Paris"),
-    new Card("What is 2 + 2?", "4"),
-    new Card("Who wrote Hamlet?", "William Shakespeare")
-  ]);
-  let e = (() => {
-    if (cards.atLeastLength(1)) {
-      let current_card = cards.head;
-      return display_card(current_card);
-    } else {
-      return display_end();
-    }
-  })();
-  let app = element2(e);
+  let app = simple(init2, update, view);
   let $ = start2(app, "#app", void 0);
   if (!$.isOk()) {
     throw makeError(
       "let_assert",
       "flashcards",
-      36,
+      62,
       "main",
       "Pattern match failed, no pattern matched the value.",
       { value: $ }
