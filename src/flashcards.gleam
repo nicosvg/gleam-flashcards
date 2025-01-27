@@ -11,10 +11,11 @@ pub type Card {
 type Msg {
   AnsweredCorrectly
   AnsweredWrongly
+  ShowAnswer
 }
 
 type Model{
-  Model(cards: List(Card))
+  Model(cards: List(Card), show_answer: Bool)
 }
 
 fn init(_flags) {
@@ -22,15 +23,23 @@ fn init(_flags) {
     Card("What is the capital of France?", "Paris"),
     Card("What is 2 + 2?", "4"),
     Card("Who wrote Hamlet?", "William Shakespeare"),
-  ])
+  ], show_answer: False)
 }
 
-fn display_card(card: Card) {
+fn display_card(card: Card, show_answer: Bool) {
     div([], [
 
-      h1([], [element.text(card.front)]),
+      case show_answer {
+        True -> h1([], [
+          element.text(card.back), 
           button([on_click(AnsweredCorrectly)], [element.text(" ✅ ")]),
           button([on_click(AnsweredWrongly)], [element.text(" ❌ ")]),
+        ])
+        False -> div([], [
+      h1([], [element.text(card.front)]),
+          button([on_click(ShowAnswer)], [element.text("Show answer")]),
+        ])
+      }
     ])
 }
 
@@ -40,17 +49,17 @@ fn display_end() {
     ])
 }
 
-fn update(model: Model, msg) {
+fn update(model: Model, msg: Msg) {
   case msg {
-    AnsweredCorrectly -> Model( model.cards |>list.drop(1))
-    AnsweredWrongly -> Model( model.cards |>list.drop(1))
+    AnsweredCorrectly -> Model( model.cards |>list.drop(1), False)
+    AnsweredWrongly -> Model( model.cards |>list.drop(1), False)
+    ShowAnswer -> Model( model.cards, True)
   }
 }
 
-
 fn view(model: Model){
   case model.cards {
-    [first, .. ] -> display_card(first)
+    [first, .. ] -> display_card(first, model.show_answer)
     [] -> display_end() 
   }
 }

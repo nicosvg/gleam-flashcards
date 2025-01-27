@@ -1955,10 +1955,13 @@ var AnsweredCorrectly = class extends CustomType {
 };
 var AnsweredWrongly = class extends CustomType {
 };
+var ShowAnswer = class extends CustomType {
+};
 var Model2 = class extends CustomType {
-  constructor(cards) {
+  constructor(cards, show_answer) {
     super();
     this.cards = cards;
+    this.show_answer = show_answer;
   }
 };
 function init2(_) {
@@ -1967,22 +1970,43 @@ function init2(_) {
       new Card("What is the capital of France?", "Paris"),
       new Card("What is 2 + 2?", "4"),
       new Card("Who wrote Hamlet?", "William Shakespeare")
-    ])
+    ]),
+    false
   );
 }
-function display_card(card) {
+function display_card(card, show_answer) {
   return div(
     toList([]),
     toList([
-      h1(toList([]), toList([text(card.front)])),
-      button(
-        toList([on_click(new AnsweredCorrectly())]),
-        toList([text(" \u2705 ")])
-      ),
-      button(
-        toList([on_click(new AnsweredWrongly())]),
-        toList([text(" \u274C ")])
-      )
+      (() => {
+        if (show_answer) {
+          return h1(
+            toList([]),
+            toList([
+              text(card.back),
+              button(
+                toList([on_click(new AnsweredCorrectly())]),
+                toList([text(" \u2705 ")])
+              ),
+              button(
+                toList([on_click(new AnsweredWrongly())]),
+                toList([text(" \u274C ")])
+              )
+            ])
+          );
+        } else {
+          return div(
+            toList([]),
+            toList([
+              h1(toList([]), toList([text(card.front)])),
+              button(
+                toList([on_click(new ShowAnswer())]),
+                toList([text("Show answer")])
+              )
+            ])
+          );
+        }
+      })()
     ])
   );
 }
@@ -1998,22 +2022,26 @@ function update(model, msg) {
       (() => {
         let _pipe = model.cards;
         return drop(_pipe, 1);
-      })()
+      })(),
+      false
     );
-  } else {
+  } else if (msg instanceof AnsweredWrongly) {
     return new Model2(
       (() => {
         let _pipe = model.cards;
         return drop(_pipe, 1);
-      })()
+      })(),
+      false
     );
+  } else {
+    return new Model2(model.cards, true);
   }
 }
 function view(model) {
   let $ = model.cards;
   if ($.atLeastLength(1)) {
     let first2 = $.head;
-    return display_card(first2);
+    return display_card(first2, model.show_answer);
   } else {
     return display_end();
   }
@@ -2025,7 +2053,7 @@ function main() {
     throw makeError(
       "let_assert",
       "flashcards",
-      62,
+      71,
       "main",
       "Pattern match failed, no pattern matched the value.",
       { value: $ }
