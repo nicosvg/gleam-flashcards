@@ -77,6 +77,105 @@ var NonEmpty = class extends List {
     this.tail = tail;
   }
 };
+var BitArray = class _BitArray {
+  constructor(buffer) {
+    if (!(buffer instanceof Uint8Array)) {
+      throw "BitArray can only be constructed from a Uint8Array";
+    }
+    this.buffer = buffer;
+  }
+  // @internal
+  get length() {
+    return this.buffer.length;
+  }
+  // @internal
+  byteAt(index3) {
+    return this.buffer[index3];
+  }
+  // @internal
+  floatFromSlice(start3, end, isBigEndian) {
+    return byteArrayToFloat(this.buffer, start3, end, isBigEndian);
+  }
+  // @internal
+  intFromSlice(start3, end, isBigEndian, isSigned) {
+    return byteArrayToInt(this.buffer, start3, end, isBigEndian, isSigned);
+  }
+  // @internal
+  binaryFromSlice(start3, end) {
+    const buffer = new Uint8Array(
+      this.buffer.buffer,
+      this.buffer.byteOffset + start3,
+      end - start3
+    );
+    return new _BitArray(buffer);
+  }
+  // @internal
+  sliceAfter(index3) {
+    const buffer = new Uint8Array(
+      this.buffer.buffer,
+      this.buffer.byteOffset + index3,
+      this.buffer.byteLength - index3
+    );
+    return new _BitArray(buffer);
+  }
+};
+var UtfCodepoint = class {
+  constructor(value) {
+    this.value = value;
+  }
+};
+function byteArrayToInt(byteArray, start3, end, isBigEndian, isSigned) {
+  const byteSize = end - start3;
+  if (byteSize <= 6) {
+    let value = 0;
+    if (isBigEndian) {
+      for (let i = start3; i < end; i++) {
+        value = value * 256 + byteArray[i];
+      }
+    } else {
+      for (let i = end - 1; i >= start3; i--) {
+        value = value * 256 + byteArray[i];
+      }
+    }
+    if (isSigned) {
+      const highBit = 2 ** (byteSize * 8 - 1);
+      if (value >= highBit) {
+        value -= highBit * 2;
+      }
+    }
+    return value;
+  } else {
+    let value = 0n;
+    if (isBigEndian) {
+      for (let i = start3; i < end; i++) {
+        value = (value << 8n) + BigInt(byteArray[i]);
+      }
+    } else {
+      for (let i = end - 1; i >= start3; i--) {
+        value = (value << 8n) + BigInt(byteArray[i]);
+      }
+    }
+    if (isSigned) {
+      const highBit = 1n << BigInt(byteSize * 8 - 1);
+      if (value >= highBit) {
+        value -= highBit * 2n;
+      }
+    }
+    return Number(value);
+  }
+}
+function byteArrayToFloat(byteArray, start3, end, isBigEndian) {
+  const view2 = new DataView(byteArray.buffer);
+  const byteSize = end - start3;
+  if (byteSize === 8) {
+    return view2.getFloat64(start3, !isBigEndian);
+  } else if (byteSize === 4) {
+    return view2.getFloat32(start3, !isBigEndian);
+  } else {
+    const msg = `Sized floats must be 32-bit or 64-bit on JavaScript, got size of ${byteSize * 8} bits`;
+    throw new globalThis.Error(msg);
+  }
+}
 var Result = class _Result extends CustomType {
   // @internal
   static isResult(data) {
@@ -184,27 +283,6 @@ function makeError(variant, module, line, fn, message, extra) {
 // build/dev/javascript/gleam_stdlib/gleam/option.mjs
 var None = class extends CustomType {
 };
-
-// build/dev/javascript/gleam_stdlib/gleam/string.mjs
-function drop_start(loop$string, loop$num_graphemes) {
-  while (true) {
-    let string4 = loop$string;
-    let num_graphemes = loop$num_graphemes;
-    let $ = num_graphemes > 0;
-    if (!$) {
-      return string4;
-    } else {
-      let $1 = pop_grapheme(string4);
-      if ($1.isOk()) {
-        let string$1 = $1[0][1];
-        loop$string = string$1;
-        loop$num_graphemes = num_graphemes - 1;
-      } else {
-        return string4;
-      }
-    }
-  }
-}
 
 // build/dev/javascript/gleam_stdlib/dict.mjs
 var referenceMap = /* @__PURE__ */ new WeakMap();
@@ -914,8 +992,24 @@ var unequalDictSymbol = Symbol();
 
 // build/dev/javascript/gleam_stdlib/gleam_stdlib.mjs
 var Nil = void 0;
+function identity(x) {
+  return x;
+}
 function to_string(term) {
   return term.toString();
+}
+function float_to_string(float4) {
+  const string4 = float4.toString().replace("+", "");
+  if (string4.indexOf(".") >= 0) {
+    return string4;
+  } else {
+    const index3 = string4.indexOf("e");
+    if (index3 >= 0) {
+      return string4.slice(0, index3) + ".0" + string4.slice(index3);
+    } else {
+      return string4 + ".0";
+    }
+  }
 }
 var segmenter = void 0;
 function graphemes_iterator(string4) {
@@ -960,6 +1054,15 @@ var unicode_whitespaces = [
 ].join("");
 var trim_start_regex = new RegExp(`^[${unicode_whitespaces}]*`);
 var trim_end_regex = new RegExp(`[${unicode_whitespaces}]*$`);
+function print_debug(string4) {
+  if (typeof process === "object" && process.stderr?.write) {
+    process.stderr.write(string4 + "\n");
+  } else if (typeof Deno === "object") {
+    Deno.stderr.writeSync(new TextEncoder().encode(string4 + "\n"));
+  } else {
+    console.log(string4);
+  }
+}
 function new_map() {
   return Dict.new();
 }
@@ -968,6 +1071,119 @@ function map_to_list(map4) {
 }
 function map_insert(key, value, map4) {
   return map4.set(key, value);
+}
+function inspect(v) {
+  const t = typeof v;
+  if (v === true)
+    return "True";
+  if (v === false)
+    return "False";
+  if (v === null)
+    return "//js(null)";
+  if (v === void 0)
+    return "Nil";
+  if (t === "string")
+    return inspectString(v);
+  if (t === "bigint" || Number.isInteger(v))
+    return v.toString();
+  if (t === "number")
+    return float_to_string(v);
+  if (Array.isArray(v))
+    return `#(${v.map(inspect).join(", ")})`;
+  if (v instanceof List)
+    return inspectList(v);
+  if (v instanceof UtfCodepoint)
+    return inspectUtfCodepoint(v);
+  if (v instanceof BitArray)
+    return inspectBitArray(v);
+  if (v instanceof CustomType)
+    return inspectCustomType(v);
+  if (v instanceof Dict)
+    return inspectDict(v);
+  if (v instanceof Set)
+    return `//js(Set(${[...v].map(inspect).join(", ")}))`;
+  if (v instanceof RegExp)
+    return `//js(${v})`;
+  if (v instanceof Date)
+    return `//js(Date("${v.toISOString()}"))`;
+  if (v instanceof Function) {
+    const args = [];
+    for (const i of Array(v.length).keys())
+      args.push(String.fromCharCode(i + 97));
+    return `//fn(${args.join(", ")}) { ... }`;
+  }
+  return inspectObject(v);
+}
+function inspectString(str) {
+  let new_str = '"';
+  for (let i = 0; i < str.length; i++) {
+    let char = str[i];
+    switch (char) {
+      case "\n":
+        new_str += "\\n";
+        break;
+      case "\r":
+        new_str += "\\r";
+        break;
+      case "	":
+        new_str += "\\t";
+        break;
+      case "\f":
+        new_str += "\\f";
+        break;
+      case "\\":
+        new_str += "\\\\";
+        break;
+      case '"':
+        new_str += '\\"';
+        break;
+      default:
+        if (char < " " || char > "~" && char < "\xA0") {
+          new_str += "\\u{" + char.charCodeAt(0).toString(16).toUpperCase().padStart(4, "0") + "}";
+        } else {
+          new_str += char;
+        }
+    }
+  }
+  new_str += '"';
+  return new_str;
+}
+function inspectDict(map4) {
+  let body = "dict.from_list([";
+  let first2 = true;
+  map4.forEach((value, key) => {
+    if (!first2)
+      body = body + ", ";
+    body = body + "#(" + inspect(key) + ", " + inspect(value) + ")";
+    first2 = false;
+  });
+  return body + "])";
+}
+function inspectObject(v) {
+  const name = Object.getPrototypeOf(v)?.constructor?.name || "Object";
+  const props = [];
+  for (const k of Object.keys(v)) {
+    props.push(`${inspect(k)}: ${inspect(v[k])}`);
+  }
+  const body = props.length ? " " + props.join(", ") + " " : "";
+  const head = name === "Object" ? "" : name + " ";
+  return `//js(${head}{${body}})`;
+}
+function inspectCustomType(record) {
+  const props = Object.keys(record).map((label) => {
+    const value = inspect(record[label]);
+    return isNaN(parseInt(label)) ? `${label}: ${value}` : value;
+  }).join(", ");
+  return props ? `${record.constructor.name}(${props})` : record.constructor.name;
+}
+function inspectList(list2) {
+  return `[${list2.toArray().map(inspect).join(", ")}]`;
+}
+function inspectBitArray(bits) {
+  return `<<${Array.from(bits.buffer).join(", ")}>>`;
+}
+function inspectUtfCodepoint(codepoint2) {
+  return `//utfcodepoint(${String.fromCodePoint(codepoint2.value)})`;
 }
 
 // build/dev/javascript/gleam_stdlib/gleam/dict.mjs
@@ -1008,23 +1224,39 @@ function keys(dict2) {
 }
 
 // build/dev/javascript/gleam_stdlib/gleam/list.mjs
-function drop(loop$list, loop$n) {
+function reverse_loop(loop$remaining, loop$accumulator) {
   while (true) {
-    let list2 = loop$list;
-    let n = loop$n;
-    let $ = n <= 0;
-    if ($) {
-      return list2;
+    let remaining = loop$remaining;
+    let accumulator = loop$accumulator;
+    if (remaining.hasLength(0)) {
+      return accumulator;
     } else {
-      if (list2.hasLength(0)) {
-        return toList([]);
-      } else {
-        let rest$1 = list2.tail;
-        loop$list = rest$1;
-        loop$n = n - 1;
-      }
+      let item = remaining.head;
+      let rest$1 = remaining.tail;
+      loop$remaining = rest$1;
+      loop$accumulator = prepend(item, accumulator);
     }
   }
+}
+function reverse(list2) {
+  return reverse_loop(list2, toList([]));
+}
+function append_loop(loop$first, loop$second) {
+  while (true) {
+    let first2 = loop$first;
+    let second = loop$second;
+    if (first2.hasLength(0)) {
+      return second;
+    } else {
+      let item = first2.head;
+      let rest$1 = first2.tail;
+      loop$first = rest$1;
+      loop$second = prepend(item, second);
+    }
+  }
+}
+function append2(first2, second) {
+  return append_loop(reverse(first2), second);
 }
 function fold(loop$list, loop$initial, loop$fun) {
   while (true) {
@@ -1062,6 +1294,39 @@ function index_fold_loop(loop$over, loop$acc, loop$with, loop$index) {
 }
 function index_fold(list2, initial, fun) {
   return index_fold_loop(list2, initial, fun, 0);
+}
+
+// build/dev/javascript/gleam_stdlib/gleam/string.mjs
+function drop_start(loop$string, loop$num_graphemes) {
+  while (true) {
+    let string4 = loop$string;
+    let num_graphemes = loop$num_graphemes;
+    let $ = num_graphemes > 0;
+    if (!$) {
+      return string4;
+    } else {
+      let $1 = pop_grapheme(string4);
+      if ($1.isOk()) {
+        let string$1 = $1[0][1];
+        loop$string = string$1;
+        loop$num_graphemes = num_graphemes - 1;
+      } else {
+        return string4;
+      }
+    }
+  }
+}
+function inspect2(term) {
+  let _pipe = inspect(term);
+  return identity(_pipe);
+}
+
+// build/dev/javascript/gleam_stdlib/gleam/io.mjs
+function debug(term) {
+  let _pipe = term;
+  let _pipe$1 = inspect2(_pipe);
+  print_debug(_pipe$1);
+  return term;
 }
 
 // build/dev/javascript/gleam_stdlib/gleam/bool.mjs
@@ -1945,10 +2210,12 @@ function on_click(msg) {
 
 // build/dev/javascript/flashcards/flashcards.mjs
 var Card = class extends CustomType {
-  constructor(front, back) {
+  constructor(front, back, answered, is_correct) {
     super();
     this.front = front;
     this.back = back;
+    this.answered = answered;
+    this.is_correct = is_correct;
   }
 };
 var AnsweredCorrectly = class extends CustomType {
@@ -1967,9 +2234,9 @@ var Model2 = class extends CustomType {
 function init2(_) {
   return new Model2(
     toList([
-      new Card("What is the capital of France?", "Paris"),
-      new Card("What is 2 + 2?", "4"),
-      new Card("Who wrote Hamlet?", "William Shakespeare")
+      new Card("What is the capital of France?", "Paris", false, false),
+      new Card("What is 2 + 2?", "4", false, false),
+      new Card("Who wrote Hamlet?", "William Shakespeare", false, false)
     ]),
     false
   );
@@ -2017,22 +2284,24 @@ function display_end() {
   );
 }
 function update(model, msg) {
+  debug(model);
+  let $ = model.cards;
+  if (!$.atLeastLength(1)) {
+    throw makeError(
+      "let_assert",
+      "flashcards",
+      59,
+      "update",
+      "Pattern match failed, no pattern matched the value.",
+      { value: $ }
+    );
+  }
+  let first2 = $.head;
+  let rest = $.tail;
   if (msg instanceof AnsweredCorrectly) {
-    return new Model2(
-      (() => {
-        let _pipe = model.cards;
-        return drop(_pipe, 1);
-      })(),
-      false
-    );
+    return new Model2(rest, false);
   } else if (msg instanceof AnsweredWrongly) {
-    return new Model2(
-      (() => {
-        let _pipe = model.cards;
-        return drop(_pipe, 1);
-      })(),
-      false
-    );
+    return new Model2(append2(rest, toList([first2])), false);
   } else {
     return new Model2(model.cards, true);
   }
@@ -2053,7 +2322,7 @@ function main() {
     throw makeError(
       "let_assert",
       "flashcards",
-      71,
+      77,
       "main",
       "Pattern match failed, no pattern matched the value.",
       { value: $ }
