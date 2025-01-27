@@ -1,6 +1,6 @@
-import gleam/io
 import gleam/list
 import lustre
+import lustre/attribute
 import lustre/element
 import lustre/element/html.{button, div, h1}
 import lustre/event.{on_click}
@@ -19,7 +19,7 @@ type Model {
   Model(cards: List(Card), show_answer: Bool)
 }
 
-fn init(_flags) {
+fn init(_) {
   Model(
     cards: [
       Card("What is the capital of France?", "Paris", False, False),
@@ -31,13 +31,14 @@ fn init(_flags) {
 }
 
 fn display_card(card: Card, show_answer: Bool) {
+  let styles = [#("color", "red")]
   div([], [
     case show_answer {
       True ->
-        h1([], [
+        h1([attribute.style(styles)], [
           element.text(card.back),
-          button([on_click(AnsweredCorrectly)], [element.text(" ✅ ")]),
-          button([on_click(AnsweredWrongly)], [element.text(" ❌ ")]),
+          button([on_click(AnsweredCorrectly)], [element.text("✅")]),
+          button([on_click(AnsweredWrongly)], [element.text("❌")]),
         ])
       False ->
         div([], [
@@ -49,18 +50,19 @@ fn display_card(card: Card, show_answer: Bool) {
 }
 
 fn display_end() {
-  div([], [
-    h1([], [element.text("Well done!")]),
-  ])
+  div([], [h1([], [element.text("Well done!")])])
 }
 
 fn update(model: Model, msg: Msg) {
-  io.debug(model)
-  let assert [first, ..rest] = model.cards
-  case msg {
-    AnsweredCorrectly -> Model(rest, False)
-    AnsweredWrongly -> Model(list.append(rest, [first]), False)
-    ShowAnswer -> Model(model.cards, True)
+  case model.cards {
+    [] -> Model([], False)
+    [first, ..rest] -> {
+      case msg {
+        AnsweredCorrectly -> Model(rest, False)
+        AnsweredWrongly -> Model(list.append(rest, [first]), False)
+        ShowAnswer -> Model(model.cards, True)
+      }
+    }
   }
 }
 
@@ -73,8 +75,6 @@ fn view(model: Model) {
 
 pub fn main() {
   let app = lustre.simple(init, update, view)
-
   let assert Ok(_) = lustre.start(app, "#app", Nil)
-
   Nil
 }
